@@ -11,12 +11,17 @@
 import torch
 import subprocess
 import argparse
+import time
+import os
+import random
+import numpy
 
 from torch import Tensor
 from PIL import Image
 from torchvision.transforms.functional import to_tensor, to_pil_image
 from bitstream.encode import encode
 from bitstream.decode import decode
+from filewise_export_stats import export_stats
 from losses import build_loss
 
 from models.mlp_coding import greedy_quantization
@@ -24,6 +29,21 @@ from models.cool_chic import CoolChicEncoder, to_device
 
 from utils.logging import format_results_loss
 from model_management.trainer import loss_fn, train, save_model
+
+def set_reproducibility():
+    seed = int(os.environ.get("CC_SEED"))
+    if seed:
+        torch.random.manual_seed(seed)
+
+    torch.random.manual_seed(seed)
+    random.seed(seed)
+    numpy.random.seed(seed)
+
+    # torch.use_deterministic_algorithms(True)
+    torch.autograd.set_detect_anomaly(False)
+    torch.autograd.profiler.profile(False)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 if __name__ == '__main__':
     # =========================== Parse arguments =========================== #
@@ -34,6 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('--decoded_img_path', type=str, default='./decoded.png', help='Decoded image path.')
     parser.add_argument('--model_save_path', type=str, default='./model.pt', help='Save pytorch model here.')
     parser.add_argument('--enc_results_path', type=str, default='./encoder_results.txt', help='Save encoder-side results here.')
+    parser.add_argument('--stats_path', type=str, default='./stats.json', help='Save stats in JSON here.')
     parser.add_argument('--lmbda', help='Rate constraint', type=float, default=1e-3)
     parser.add_argument('--start_lr', help='Initial learning rate', type=float, default=1e-2)
     parser.add_argument('--n_itr', help='Number of maximum iterations', type=int, default=int(1e6))
@@ -46,6 +67,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # =========================== Parse arguments =========================== #
 
+    set_reproducibility()
+
     # ====================== Torchscript JIT parameters ===================== #
     # From https://github.com/pytorch/pytorch/issues/52286
     # This is no longer the case with the with torch.jit.fuser
@@ -54,6 +77,8 @@ if __name__ == '__main__':
     torch._C._jit_set_texpr_fuser_enabled(False)
     torch._C._jit_set_profiling_mode(False)
     # ====================== Torchscript JIT parameters ===================== #
+
+    start_time = time.time()
 
     # =========================== Parse arguments =========================== #
     layers_synthesis = [int(x) for x in args.layers_synthesis.split(',') if x != '']
@@ -133,6 +158,8 @@ if __name__ == '__main__':
     print(f'Rate Synthesis  : {rate_mlp.get("synthesis") / n_pixels:5.4f} bpp')
     # ======================== Quantize the network ========================= #
 
+    end_time = time.time()
+
     # ================ Final forward to check the performance =============== #
     with torch.no_grad():
         model = model.eval()
@@ -210,3 +237,8 @@ if __name__ == '__main__':
     with open(args.enc_results_path, 'w') as f:
         f.write(str_keys + '\n' + str_vals + '\n')
     # === Perform decoding at the encoder-side to measure the performance === #
+
+
+    # Write stats in JSON
+    total_time = end_time - start_time
+    export_stats(args.input, args.decoded_img_path, args.stats_path, args.output, total_time)
