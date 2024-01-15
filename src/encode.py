@@ -17,6 +17,7 @@ from PIL import Image
 from torchvision.transforms.functional import to_tensor, to_pil_image
 from bitstream.encode import encode
 from bitstream.decode import decode
+from losses import build_loss
 
 from models.mlp_coding import greedy_quantization
 from models.cool_chic import CoolChicEncoder, to_device
@@ -41,6 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_ctx_rowcol', help='Number of rows/columns for ARM', type=int, default=2)
     parser.add_argument('--latent_n_grids', help='Number of latent grids', type=int, default=7)
     parser.add_argument('--n_trial_warmup', help='Number of warm-up trials', type=int, default=5)
+    parser.add_argument('--dist_fn', help='Distortion function', type=str, default="mse:1.0")
     args = parser.parse_args()
     # =========================== Parse arguments =========================== #
 
@@ -62,6 +64,11 @@ if __name__ == '__main__':
     img = to_tensor(Image.open(args.input)).unsqueeze(0).to(args.device)
     print(f'Image size: {img.size()}')
 
+
+    # Initialize distortion function
+    dist_fn = build_loss(args.dist_fn)
+    print(f"Distortion loss: {dist_fn}")
+
     # Do some loops with few iterations to find the best starting point
     best_loss = 1e6
     N_WARM_UP = args.n_trial_warmup
@@ -78,7 +85,7 @@ if __name__ == '__main__':
         )
 
         cur_model, training_stat_logs = train(
-            model, img, lmbda=args.lmbda, start_lr=args.start_lr, n_itr=200,
+            model, img, lmbda=args.lmbda, start_lr=args.start_lr, dist_fn=dist_fn, n_itr=200,
         )
         cur_loss = training_stat_logs['loss']
 
@@ -95,7 +102,7 @@ if __name__ == '__main__':
     print(model.print_nb_mac())
 
     model, training_stat_logs = train(
-        model, img, lmbda=args.lmbda, start_lr=args.start_lr, n_itr=int(args.n_itr)
+        model, img, lmbda=args.lmbda, start_lr=args.start_lr, dist_fn=dist_fn, n_itr=int(args.n_itr)
     )
 
     # Save non quantized model at the end of the training
@@ -108,7 +115,7 @@ if __name__ == '__main__':
         model_out = model()
 
         # Compute results
-        _, metrics = loss_fn(model_out, img, args.lmbda, compute_logs=True)
+        _, metrics = loss_fn(model_out, img, args.lmbda, dist_fn, compute_logs=True)
 
         loss_float = metrics.get('loss').item()
         print('=' * 120)
@@ -118,7 +125,7 @@ if __name__ == '__main__':
     # ========= Print full precision performance as a sanity check ========== #
 
     # ======================== Quantize the network ========================= #
-    model, q_step, rate_mlp = greedy_quantization(model, img, args.lmbda, verbose=False)
+    model, q_step, rate_mlp = greedy_quantization(model, img, args.lmbda, dist_fn, verbose=False)
     # Rate in bit, not in bpp
     total_mlp_rate = sum(v for _, v in rate_mlp.items())
     n_pixels = img.size()[-2] * img.size()[-1]
@@ -132,7 +139,7 @@ if __name__ == '__main__':
         model_out = model()
 
         # Compute results
-        _, metrics = loss_fn(model_out, img.to('cpu'), args.lmbda, compute_logs=True, rate_mlp=total_mlp_rate) # cpu for now.
+        _, metrics = loss_fn(model_out, img.to('cpu'), args.lmbda, dist_fn, compute_logs=True, rate_mlp=total_mlp_rate) # cpu for now.
         loss_quantized = metrics.get('loss').item()
 
     print('=' * 120)
@@ -149,7 +156,7 @@ if __name__ == '__main__':
     rate['rate_all_bpp'] = sum(metrics.get(k) for k in ['rate_y', 'rate_mlp'])
 
     str_keys, str_vals = '', ''
-    for k in ['psnr']:
+    for k in ['dist']:
         str_keys += f'{k},'
         str_vals += f'{metrics.get(k):8.6f},'
 

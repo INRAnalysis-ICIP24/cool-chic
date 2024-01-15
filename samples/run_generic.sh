@@ -2,6 +2,7 @@
 IMAGE_PATH=$1
 LAMBDA=$2
 OUTPUT_FOLDER=$3
+DIST_FN=$4
 
 mkdir -p $OUTPUT_FOLDER
 
@@ -10,4 +11,4 @@ DECODED_PATH=$OUTPUT_FOLDER/decoded.png
 MODEL_SAVE_PATH=$OUTPUT_FOLDER/model.pt
 ENCODER_RESULTS_PATH=$OUTPUT_FOLDER/encoder_results.txt
 
-python3 src/encode.py --device=cuda:0 --input=${IMAGE_PATH} --output=${BITSTREAM_PATH} --decoded_img_path=${DECODED_PATH} --model_save_path=${MODEL_SAVE_PATH} --enc_results_path=${ENCODER_RESULTS_PATH} --lmbda=$LAMBDA --start_lr=1e-2 --n_itr=1000 --layers_synthesis=12,12 --layers_arm=12,12 --n_ctx_rowcol=2 --latent_n_grids=7
+python3 src/encode.py --device=${CC_DEVICE} --input=${IMAGE_PATH} --output=${BITSTREAM_PATH} --decoded_img_path=${DECODED_PATH} --model_save_path=${MODEL_SAVE_PATH} --enc_results_path=${ENCODER_RESULTS_PATH} --lmbda=$LAMBDA --start_lr=1e-2 --n_itr=1000 --layers_synthesis=12,12 --layers_arm=12,12 --n_ctx_rowcol=2 --latent_n_grids=7 --dist_fn="${DIST_FN}"

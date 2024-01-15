@@ -11,7 +11,7 @@
 import torch
 import struct
 
-LIST_POSSIBLE_DEVICES = ['cpu', 'cuda:0']
+LIST_POSSIBLE_DEVICES = ['cpu', 'cuda:0', 'cuda:1']
 
 # Avoid numerical instability when measuring the rate of the NN parameters
 MIN_SCALE_NN_WEIGHTS_BIAS = 1.0/1024.0

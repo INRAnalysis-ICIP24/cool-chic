@@ -131,6 +131,7 @@ def greedy_quantization(
     fp_model: nn.Module,
     img: Tensor,
     lmbda: float,
+    dist_fn,
     verbose: bool = True,
 ) -> Tuple:
     """Find the best quantization steps for both MLP (ARM & Synthesis).
@@ -200,7 +201,7 @@ def greedy_quantization(
                 img = img.to('cpu') # for now
             model_out = fp_model()
             # Compute results
-            loss, logs = loss_fn(model_out, img, lmbda, compute_logs=verbose, rate_mlp=rate_module)
+            loss, logs = loss_fn(model_out, img, lmbda, dist_fn=dist_fn, compute_logs=verbose, rate_mlp=rate_module)
 
             if verbose:
                 first_row = 'q_step_w\tq_step_b'

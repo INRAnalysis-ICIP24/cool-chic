@@ -13,5 +13,7 @@ venv/
 !LICENSE.txt
 
 test_images
-results/cool-chic-v1/
+results/
+!results/biville/
+!results/kodak/
 logs/

@@ -60,6 +60,7 @@ def loss_fn(
     out_forward: EncoderOutput,
     target: Tensor,
     lmbda: float,
+    dist_fn,
     compute_logs: bool = False,
     rate_mlp: float = 0.,
 ) -> Tuple:
@@ -80,14 +81,16 @@ def loss_fn(
     """
     x_hat = out_forward.get('x_hat')
     n_pixels = x_hat.size()[-2] * x_hat.size()[-1]
-    mse = mse_fn(x_hat, target)
+    # mse = mse_fn(x_hat, target)
+    dist = dist_fn(x_hat, target)
     rate_bpp = (out_forward.get('rate_y') + rate_mlp) / n_pixels
-    loss = mse + lmbda * rate_bpp
+    loss = dist + lmbda * rate_bpp
 
     if compute_logs:
         logs = {
             'loss': loss.detach() * 1000,
-            'psnr': 10. * torch.log10(1. / mse.detach()),
+            # 'psnr': 10. * torch.log10(1. / mse.detach()),
+            'dist': dist.detach(),
             'rate_mlp': rate_mlp / n_pixels,        # Rate MLP in bpp
         }
 
@@ -113,6 +116,7 @@ def loss_fn(
 def train(
     model: nn.Module,
     target: Tensor,
+    dist_fn,
     n_itr: int = int(5e3),
     start_lr: float = 1e-2,
     lmbda: float = 5e-3,
@@ -158,7 +162,7 @@ def train(
             param.grad = None
 
         out_forward = model(use_ste_quant = use_ste_quant)
-        loss, _ = loss_fn(out_forward, target, lmbda, compute_logs=False)
+        loss, _ = loss_fn(out_forward, target, lmbda, dist_fn, compute_logs=False)
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), 10., norm_type=2.0, error_if_nonfinite=False)
         optimizer.step()
@@ -169,7 +173,7 @@ def train(
             # Valid on the whole picture to feed the patience-based scheduler
             with torch.no_grad():
                 out_forward = model()
-                loss, logs = loss_fn(out_forward, target, lmbda, compute_logs=True)
+                loss, logs = loss_fn(out_forward, target, lmbda, dist_fn, compute_logs=True)
 
                 n_bad_epoch_before = scheduler.num_bad_epochs
                 scheduler.step(loss)
