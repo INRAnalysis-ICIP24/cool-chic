@@ -11,3 +11,6 @@ venv/
 !samples/code_image_gpu.sh
 !samples/biville.png
 !LICENSE.txt
+
+test_images
+results/cool-chic-v1/
