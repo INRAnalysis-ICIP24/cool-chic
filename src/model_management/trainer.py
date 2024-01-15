@@ -73,8 +73,6 @@ def one_training_phase(
     # =============== Build the list of parameters to optimize ============== #
 
     cnt_record = 0
-    previous_record_rate_latent_bpp = 50
-    previous_record_psnr_db = 0
 
     # phase optimization
     for cnt in range(trainer_phase.max_itr):
@@ -104,15 +102,7 @@ def one_training_phase(
             results = test(model)
 
             # b. Store record ----------------------------------------------- #
-            flag_new_record = False
-
-            if results.loss < this_phase_best_results.loss:
-                # A record must have at least -0.001 bpp or + 0.001 dB. A smaller improvement
-                # does not matter.
-                delta_psnr = results.psnr_db - previous_record_psnr_db
-                delta_bpp  = results.rate_latent_bpp - previous_record_rate_latent_bpp
-                if delta_bpp < 0.001 or delta_psnr > 0.001:
-                    flag_new_record = True
+            flag_new_record = True
 
             if flag_new_record:
                 # Save best model
@@ -121,16 +111,13 @@ def one_training_phase(
 
                 # ========================= reporting ========================= #
                 this_phase_loss_gain =  100 * (results.loss - this_phase_init_results.loss) / this_phase_init_results.loss
-                this_phase_psnr_gain =  results.psnr_db - this_phase_init_results.psnr_db
                 this_phase_bpp_gain =  results.rate_latent_bpp - this_phase_init_results.rate_latent_bpp
 
-                log_new_record = f'{this_phase_loss_gain:+5.2f}% {this_phase_bpp_gain:+6.3f} bpp {this_phase_psnr_gain:+6.3f} db'
+                log_new_record = f'{this_phase_loss_gain:+5.2f}% {this_phase_bpp_gain:+6.3f} bpp'
                 # ========================= reporting ========================= #
 
                 # Update new record
                 this_phase_best_results = results
-                previous_record_psnr_db = results.rate_latent_bpp
-                previous_record_rate_latent_bpp = results.psnr_db
                 cnt_record = cnt
 
             else:
@@ -204,7 +191,7 @@ def do_warmup(cool_chic_param: CoolChicParameter, encoder_preset: Preset, device
 
         # Construct the training phase object describing the options of this particular
         # warm-up phase
-        training_phase = TrainerPhase(lr=warmup_phase.lr, max_itr=warmup_phase.iterations)
+        training_phase = TrainerPhase(lr=warmup_phase.lr, max_itr=warmup_phase.iterations, dist=warmup_phase.dist)
 
         # ! idx_candidate is just the index of one candidate in the all_candidates list. It is **not** a
         # ! unique identifier for this candidate. This is given by:
@@ -239,12 +226,11 @@ def do_warmup(cool_chic_param: CoolChicParameter, encoder_preset: Preset, device
 
         # Print the results of this warm-up phase
         s = f'\n\n'
-        s += f'{"ID":^{6}}|{"loss":^{_col_width}}|{"rate_bpp":^{_col_width}}|{"psnr_db":^{_col_width}}|\n'
+        s += f'{"ID":^{6}}|{"loss":^{_col_width}}|{"rate_bpp":^{_col_width}}|\n'
         for candidate in all_candidates:
             s += f'{candidate.get("id"):^{6}}|'
             s += f'{candidate.get("metrics").loss * 1e3:^{_col_width}.4f}|'
             s += f'{candidate.get("metrics").rate_bpp:^{_col_width}.4f}|'
-            s += f'{candidate.get("metrics").psnr_db:^{_col_width}.4f}|'
             s += '\n'
         s += f'\n{msg_start_end_phase}\n'
         print(s)

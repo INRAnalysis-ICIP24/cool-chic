@@ -7,7 +7,9 @@
 # Authors: Theo Ladune <theo.ladune@orange.com>
 #          Pierrick Philippe <pierrick.philippe@orange.com>
 
+from losses import build_loss
 import torch
+import sys
 
 from typing import Dict, Tuple, Union
 from torch import Tensor
@@ -32,7 +34,7 @@ def loss_fn(
     target: Union[Tensor, DictTensorYUV],
     lmbda: float,
     compute_logs: bool = False,
-    dist_mode: str = 'mse',
+    dist_mode: str = 'mse:1.0',
     rate_mlp: float = 0.,
 ) -> Tuple[Tensor, Dict]:
     """Compute the loss and other quantities from the network output out_forward
@@ -62,50 +64,22 @@ def loss_fn(
 
     flag_yuv = not(isinstance(target, Tensor))
     if flag_yuv:
-        n_pixels = x_hat.get('y').size()[-2] * x_hat.get('y').size()[-1]
+        print(f"YUV is not supported in this fork")
+        sys.exit(1)
 
-        # Total number of pixels for all channels
-        total_pixels_yuv = sum([v.numel() for _, v in x_hat.items()])
-        # MSE weighted by the number of pixels in each channels
-        mse = torch.zeros((1), device=x_hat.get('y').device)
-
-        for k in x_hat:
-            x_hat_channel = x_hat.get(k)
-            target_channel = target.get(k)
-            mse = mse + mse_fn(x_hat_channel, target_channel) * x_hat_channel.numel()
-        mse = mse / total_pixels_yuv
-    else:
-        n_pixels = x_hat.size()[-2] * x_hat.size()[-1]
-        mse = mse_fn(x_hat, target)
+    n_pixels = x_hat.size()[-2] * x_hat.size()[-1]
 
     rate_bpp = (out_forward.get('rate_y').sum() + rate_mlp) / n_pixels
 
-    if compute_logs or dist_mode == 'ms_ssim':
-        ms_ssim_fn = MSSSIM(max_val=1.)
-
-        if flag_yuv:
-            # MSE weighted by the number of pixels in each channels
-            ms_ssim = torch.zeros((1), device=x_hat.get('y').device)
-
-            for (_, x_hat_channel), (_, target_channel) in zip(x_hat.items(), target.items()):
-                ms_ssim = ms_ssim + ms_ssim_fn(x_hat_channel, target_channel) * x_hat_channel.numel()
-
-            # total_pixels_yuv has already been computed above
-            ms_ssim = ms_ssim / total_pixels_yuv
-
-        else:
-            ms_ssim = ms_ssim_fn(x_hat, target)
-
-    dist = mse if dist_mode == 'mse' else 1 - ms_ssim
+    dist_fn = build_loss(dist_mode)
+    dist = dist_fn(x_hat, target)
     # dist = mse
     loss = dist + lmbda * rate_bpp
 
     if compute_logs:
         logs = {
             'loss': loss.detach().item(),
-            'psnr': 10. * torch.log10(1. / mse.detach()).item(),
-            'mse': mse.detach().item(),
-            'ms_ssim_db': -10. * torch.log10(1 - ms_ssim.detach()).item(),
+            'dist': dist.detach().item(),
             'rate_mlp': rate_mlp / n_pixels,        # Rate MLP in bpp
             'rate_y': out_forward.get('rate_y').detach().sum().item() / n_pixels,  # Rate y in bpp
         }

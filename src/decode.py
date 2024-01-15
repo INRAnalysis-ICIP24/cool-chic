@@ -14,12 +14,15 @@ import subprocess
 import torch
 
 from bitstream.decode import decode
+from filewise_export_stats import export_stats
 
 if __name__ == '__main__':
     # =========================== Parse arguments =========================== #
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', help='Path of the bitstream to decode.', type=str)
     parser.add_argument('-o', '--output', help='Path to save the decoded image.', type=str)
+    parser.add_argument('--stats_path', type=str, default='./stats.json', help='Save stats in JSON here.')
+    parser.add_argument('--image_path', type=str)
     parser.add_argument('--device', help='"cpu" or "cuda:0" or "mps:0". Should be CPU!', type=str, default='cpu')
     args = parser.parse_args()
     # =========================== Parse arguments =========================== #
@@ -42,3 +45,6 @@ if __name__ == '__main__':
     subprocess.call("export CUBLAS_WORKSPACE_CONFIG=:4096:8", shell=True)
     subprocess.call("export CUBLAS_WORKSPACE_CONFIG=:16:8", shell=True)
     decode(args.input, args.output, device=args.device)
+
+    # TODO: Support execution time
+    export_stats(args.image_path, args.output, args.stats_path, args.input, 0.0)

@@ -28,7 +28,6 @@ class CoolChicEncoderLogs():
     rate_upsampling_bpp: float      # Rate of the Latent upsampling module      [bpp]
 
     mse: float                      # MSE of the decoded image                  [ / ]
-    psnr_db: float                  # PSNR of the decoded image                 [ dB]
     ms_ssim_db: float               # -10log(1 - MS-SSIM) decoded img           [ dB]
     loss: float                     # D + lambda * R                            [ / ]
     q_step_arm_weight: float        # Q step for the ARM MLP weights            [ / ]
@@ -53,7 +52,6 @@ class CoolChicEncoderLogs():
 
     def __post_init__(self):
         self.rate_mlp_bpp = self.rate_arm_bpp + self.rate_synthesis_bpp + self.rate_upsampling_bpp
-
 
         self.rate_bpp = self.rate_mlp_bpp + self.rate_latent_bpp
 
@@ -82,7 +80,7 @@ class CoolChicEncoderLogs():
             str: All the information about a CoolChicEncoder performance (and more!)
         """
         # Construct the list of values to print
-        keys = ['loss', 'psnr_db', 'rate_bpp', 'iterations', 'time_sec', 'rate_mlp_bpp', 'ms_ssim_db']
+        keys = ['loss', 'rate_bpp', 'iterations', 'time_sec', 'rate_mlp_bpp', 'ms_ssim_db']
         if mode in ['more', 'all']:
             # keys += ['ms_ssim_db']
             pass
@@ -91,12 +89,11 @@ class CoolChicEncoderLogs():
 
         ALL_FIELDS_PRECISION = {
             'loss': '.6f',
-            'psnr_db': '.6f',
             'rate_bpp': '.6f',
             'iterations': '.0f',
             'time_sec': '.2f',
             'rate_mlp_bpp': '.6f',
-            'ms_ssim_db': '.6f',
+            # 'ms_ssim_db': '.6f',
         }
 
         if mode in ['more', 'all']:
@@ -231,7 +228,6 @@ def test(model: CoolChicEncoder) -> CoolChicEncoderLogs:
         rate_synthesis_bpp=sum([v for _, v in rate_model.get('synthesis').items()]) / n_pixels,
         rate_upsampling_bpp=sum([v for _, v in rate_model.get('upsampling').items()]) / n_pixels,
         mse=metrics.get('mse'),
-        psnr_db=metrics.get('psnr'),
         ms_ssim_db=metrics.get('ms_ssim_db'),
         loss=metrics.get('loss'),
         q_step_arm_weight=0. if arm_q_step is None else arm_q_step['weight'],

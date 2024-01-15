@@ -18,6 +18,7 @@ from typing import ClassVar, Dict, List, Literal
 class WarmupPhase():
     candidates: int     # Keep the first <candidates> best systems at the beginning of this warmup phase
     iterations: int     # Number of iterations for each candidates
+    dist: str = '__null'             
     lr: float = 1e-2    # Learning rate used during the whole phase
 
     _col_width_print: ClassVar[int] = 20      # Used only for the to_string() function
@@ -25,6 +26,7 @@ class WarmupPhase():
     def to_string(self) -> str:
         """Return a pretty string describing a warm-up phase"""
         s = f'{self.candidates:^{self._col_width_print}}|'
+        s += f"{self.dist}"
         s += f'{self.iterations:^{self._col_width_print}}|'
         s += f'{self.lr:^{self._col_width_print}}|'
         return s
@@ -72,6 +74,7 @@ class TrainerPhase:
         col_width = TrainerPhase._col_width_print
 
         s = f'{self.lr:^{col_width}}|'
+        s += f"{self.dist}"
         s += f'{self.max_itr:^{col_width}}|'
         s += f'{self.patience:^{col_width}}|'
         s += f'{self.ste:^{col_width}}|'
@@ -141,7 +144,7 @@ class PresetInstant(Preset):
         ]
 
         self.all_warmups: List[WarmupPhase] = [
-            WarmupPhase(candidates=i, iterations=10, lr=start_lr) for i in range(2, 1, -1)
+            WarmupPhase(candidates=i, iterations=10, lr=start_lr, dist=dist) for i in range(2, 1, -1)
         ]
 
 
@@ -172,7 +175,7 @@ class PresetFaster(Preset):
         ]
 
         self.all_warmups: List[WarmupPhase] = [
-            WarmupPhase(candidates=i, iterations=200, lr=start_lr) for i in range(5, 1, -1)
+            WarmupPhase(candidates=i, iterations=200, lr=start_lr, dist=dist) for i in range(5, 1, -1)
         ]
 
 
@@ -205,7 +208,7 @@ class PresetFast(Preset):
         ]
 
         self.all_warmups: List[WarmupPhase] = [
-            WarmupPhase(candidates=i, iterations=200, lr=start_lr) for i in [16, 8, 4, 2]
+            WarmupPhase(candidates=i, iterations=200, lr=start_lr, dist=dist) for i in [16, 8, 4, 2]
         ]
 
 
@@ -237,9 +240,9 @@ class PresetMedium(Preset):
         ]
 
         self.all_warmups: List[WarmupPhase] = [
-            WarmupPhase(candidates=16, iterations=200, lr=start_lr),
-            WarmupPhase(candidates=8 , iterations=400, lr=start_lr),
-            WarmupPhase(candidates=2 , iterations=200, lr=start_lr),
+            WarmupPhase(candidates=16, iterations=200, lr=start_lr, dist=dist),
+            WarmupPhase(candidates=8 , iterations=400, lr=start_lr, dist=dist),
+            WarmupPhase(candidates=2 , iterations=200, lr=start_lr, dist=dist),
         ]
 
 class PresetSlow(Preset):
@@ -270,7 +273,7 @@ class PresetSlow(Preset):
 
         # From 5 to 2 starting candidates
         self.all_warmups: List[WarmupPhase] = [
-            WarmupPhase(candidates=i, iterations=200, lr=start_lr) for i in range(5, 1, -1)
+            WarmupPhase(candidates=i, iterations=200, lr=start_lr, dist=dist) for i in range(5, 1, -1)
         ]
 
 class PresetPlacebo(Preset):
@@ -314,7 +317,7 @@ class PresetPlacebo(Preset):
 
         # From 15 to 2 starting candidates
         self.all_warmups: List[WarmupPhase] = [
-            WarmupPhase(candidates=i, iterations=200, lr=start_lr) for i in range(15, 1, -1)
+            WarmupPhase(candidates=i, iterations=200, lr=start_lr, dist=dist) for i in range(15, 1, -1)
         ]
 
 

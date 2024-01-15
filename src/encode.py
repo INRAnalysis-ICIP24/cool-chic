@@ -14,6 +14,10 @@ import torch
 import subprocess
 import argparse
 
+import time
+import random
+import numpy
+
 from PIL import Image
 from torchvision.transforms.functional import to_tensor
 
@@ -26,6 +30,8 @@ from model_management.trainer import do_warmup, one_training_phase
 from model_management.yuv import read_video, yuv_dict_to_device
 from models.cool_chic import CoolChicParameter, to_device
 from utils.device import get_best_device
+
+from losses import build_loss
 
 """
 Use this file to encode an image.
@@ -50,6 +56,21 @@ is described using the following syntax:
                         - "relu" for a ReLU,
                         - "leakyrelu" for a LeakyReLU,
 """
+
+def set_reproducibility():
+    seed = int(os.environ.get("CC_SEED"))
+    if seed:
+        torch.random.manual_seed(seed)
+
+    torch.random.manual_seed(seed)
+    random.seed(seed)
+    numpy.random.seed(seed)
+
+    # torch.use_deterministic_algorithms(True)
+    torch.autograd.set_detect_anomaly(False)
+    torch.autograd.profiler.profile(False)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 if __name__ == '__main__':
     # =========================== Parse arguments =========================== #
@@ -77,6 +98,8 @@ if __name__ == '__main__':
     parser.add_argument('--n_ctx_rowcol', help='Number of rows/columns for ARM', type=int, default=2)
     parser.add_argument('--latent_n_grids', help='Number of latent grids', type=int, default=7)
     parser.add_argument('--upsampling_kernel_size', help='upsampling kernel size (≥8)', type=int, default=8)
+    # parser.add_argument('--n_trial_warmup', help='Number of warm-up trials', type=int, default=5)
+    parser.add_argument('--dist_fn', help='Distortion function', type=str, default="mse:1.0")
     args = parser.parse_args()
     # =========================== Parse arguments =========================== #
 
@@ -101,10 +124,12 @@ if __name__ == '__main__':
         img = to_tensor(Image.open(args.input)).unsqueeze(0).to(device)
         img_type = 'rgb444'
 
+    set_reproducibility()
+
     # Create a CoolChicParameter object to store all these parameters
     cool_chic_param = CoolChicParameter(
         lmbda=args.lmbda,
-        dist='mse',
+        dist=args.dist_fn,
         img=img,
         img_type=img_type,
         layers_synthesis=layers_synthesis,
@@ -148,8 +173,9 @@ if __name__ == '__main__':
 
 
     # ===================== Initialize and train model ====================== #
+
     # Retrieve the preset class and instantiate it with the desired argument
-    training_preset = AVAILABLE_PRESET.get(args.recipe)(start_lr=args.start_lr, dist='mse')
+    training_preset = AVAILABLE_PRESET.get(args.recipe)(start_lr=args.start_lr, dist=args.dist_fn)
     if training_preset is None:
         print(f'Unknown training recipe. Found {args.recipe}')
         print(f'Expected: {AVAILABLE_PRESET.keys()}')

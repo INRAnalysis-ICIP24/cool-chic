@@ -22,4 +22,7 @@ __pycache__/
 test_images
 results/cool-chic-v1/
 results/cool-chic-v2/
+results/
+!results/biville/
+!results/kodak/
 logs/
