@@ -3,3 +3,6 @@ torch==1.13.1
 torchvision==0.14.1     # For PIL
 constriction==0.3.0     # Entropy coding
 einops==0.6.0           # Tensor manipulation
+lpips
+pytorch-msssim
+scikit-image
