@@ -17,7 +17,7 @@ def loss_from_id(id):
         return DSSIMLoss()
 
 def build_loss(config):
-    components_configs = config.split()
+    components_configs = config.split("+")
     components = list()
     for component_config in components_configs:
         identifier, weight = component_config.split(":")

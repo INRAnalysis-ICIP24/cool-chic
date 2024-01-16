@@ -1,6 +1,7 @@
 > schedule.sh
 
-for dist_fn in "mse:1.0" "l1:1.0" "l1:0.8 ssim:0.2"
+# for dist_fn in "mse:1.0" "l1:1.0" "l1:0.8 ssim:0.2"
+for dist_fn in "l1:0.8+ssim:0.2"
 do        
     for lambda in "0.0001" "0.0005" "0.004" "0.02"
     do
