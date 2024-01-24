@@ -31,6 +31,7 @@ python3 src/encode.py --device=${CC_DEVICE} \
 
 python3 src/decode.py                               \
     --input=${BITSTREAM_PATH}                       \
+    --device=${CC_DEVICE} \
     --output=${DECODED_PATH} \
     --image_path=${IMAGE_PATH} \
     --stats_path=${STATS_PATH}
