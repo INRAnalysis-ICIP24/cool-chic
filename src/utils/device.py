@@ -10,7 +10,7 @@
 from typing import Literal
 import torch
 
-POSSIBLE_DEVICE = Literal['cpu', 'cuda:0', 'mps:0']
+POSSIBLE_DEVICE = Literal['cpu', 'cuda:0', 'mps:0', 'cuda:1']
 
 def get_best_device() -> POSSIBLE_DEVICE:
     """Return the best available device i.e. best ranked one in the following list:
